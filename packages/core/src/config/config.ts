@@ -3348,27 +3348,37 @@ export class Config implements McpContext, AgentLoopContext {
       /* isMainRegistry= */ true,
     );
 
-    // helper to create & register core tools that are enabled
-    const maybeRegister = (
-      toolClass: { name: string; Name?: string },
-      registerFn: () => void,
-    ) => {
-      const className = toolClass.name;
-      const toolName = toolClass.Name || className;
-      const coreTools = this.getCoreTools();
-      // On some platforms, the className can be minified to _ClassName.
-      const normalizedClassName = className.replace(/^_+/, '');
+// helper to create & register core tools that are enabled
+let hasWarnedAboutCoreToolsAllowlist = false;
 
-      let isEnabled = true; // Enabled by default if coreTools is not set.
-      if (coreTools) {
-        isEnabled = coreTools.some(
-          (tool) =>
-            tool === toolName ||
-            tool === normalizedClassName ||
-            tool.startsWith(`${toolName}(`) ||
-            tool.startsWith(`${normalizedClassName}(`),
-        );
-      }
+const maybeRegister = (
+  toolClass: { name: string; Name?: string },
+  registerFn: () => void,
+) => {
+  const className = toolClass.name;
+  const toolName = toolClass.Name || className;
+  const coreTools = this.getCoreTools();
+
+  if (coreTools && coreTools.length > 0 && !hasWarnedAboutCoreToolsAllowlist) {
+    hasWarnedAboutCoreToolsAllowlist = true;
+    console.warn(
+      `[Gemini CLI] tools.core is configured as an allowlist. Only the specified tools will be enabled: ${coreTools.join(', ')}. Other built-in tools are disabled.`,
+    );
+  }
+
+  // On some platforms, the className can be minified to _ClassName.
+  const normalizedClassName = className.replace(/^_+/, '');
+
+  let isEnabled = true; // Enabled by default if coreTools is not set.
+  if (coreTools) {
+    isEnabled = coreTools.some(
+      (tool) =>
+        tool === toolName ||
+        tool === normalizedClassName ||
+        tool.startsWith(`${toolName}(`) ||
+        tool.startsWith(`${normalizedClassName}(`),
+    );
+  }
 
       if (isEnabled) {
         registerFn();
